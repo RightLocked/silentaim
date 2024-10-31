@@ -1,0 +1,803 @@
+getgenv().targetfolder = game.Players
+getgenv().useray = false
+
+
+
+
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua'))()
+
+
+local Window = Library:CreateWindow({
+
+    Title = 'Evc Private',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 4,
+    MenuFadeTime = 0.2
+})
+
+local Tabs = {
+    SilentAimWindow = Window:AddTab('SilentAim'),
+    ['UI Settings'] = Window:AddTab('UI Settings'),
+}
+
+
+if game.Players.LocalPlayer.UserId == 1824536364 then
+    Library:SetWatermark('Evc Private | Owner')
+else
+    Library:SetWatermark('Evc Private | Buyer')
+end
+
+
+local SilentAimLeftBox = Tabs.SilentAimWindow:AddLeftGroupbox('Silent Aim')
+
+local SilentAimVisualsBox = Tabs.SilentAimWindow:AddRightTabbox()
+
+local RightGroupbox = Tabs.SilentAimWindow:AddRightGroupbox('Spoof settings');
+local Tab1 = SilentAimVisualsBox:AddTab('Silent aim')
+
+
+local mouse = game.Players.LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
+
+local nearestplayer = nil
+local predictionconstruit = nil
+
+
+
+
+local silentaimrayargs = nil
+local silentaimmouseargs = nil
+
+local silentaimtogglestatus = false
+local silentaimkeybindstatus = false
+local silentaimhitpart = "Head"
+
+
+local silentaimwallcheck = false
+local silentaimhealthcheck = false
+local silentaimhealthcheckhealth = 0
+local silentaimvisiblecheck = false
+local silentaimforcefieldcheck = false
+local silentaimteamcheck = false
+local silentaimtoolcheck = false
+
+local silentaimvisualizetarget = false
+
+local silentaimvisualizehighlight = false
+local silentaimhighlightFillColor = Color3.fromRGB(125, 125, 125)
+local silentaimhighlightOutlineColor = Color3.fromRGB(125, 125, 125)
+
+
+local silentaimvisualizecrosshair = false
+local silentaimcrosshairspace = 0
+local silentaimcrosshairlength = 0
+local silentaimcrosshairthickness = 0
+
+local silentaimprediction = false
+local silentaimpredictionx = 0
+local silentaimpredictiony = 0
+local silentaimpredictionz = 0
+
+
+
+
+
+local silentaimcircle = Drawing.new("Circle")
+silentaimcircle.Radius = 0
+silentaimcircle.Visible = false
+silentaimcircle.Thickness = 1
+silentaimcircle.Transparency = 1
+silentaimcircle.Color = Color3.fromRGB(0,0,0)
+
+local Line1 = Drawing.new("Line")
+Line1.Thickness = 0
+Line1.Transparency = 1
+Line1.Visible = true
+Line1.Color = Color3.fromRGB(0,0,0)
+
+local Line2 = Drawing.new("Line")
+Line2.Thickness = 0
+Line2.Transparency = 1
+Line2.Visible = true
+Line2.Color = Color3.fromRGB(0,0,0)
+
+local Line3 = Drawing.new("Line")
+Line3.Thickness = 0
+Line3.Transparency = 1
+Line3.Visible = true
+Line3.Color = Color3.fromRGB(0,0,0)
+
+local Line4 = Drawing.new("Line")
+Line4.Thickness = 0
+Line4.Transparency = 1
+Line4.Visible = true
+Line4.Color = Color3.fromRGB(0,0,0)
+
+
+
+
+walls = {}
+function WallCheck(OriginPart, Part)
+    local IgnoreList = {game.Workspace.CurrentCamera, game.Players.LocalPlayer.Character, OriginPart.Parent}
+    local Parts = game.Workspace.CurrentCamera:GetPartsObscuringTarget(
+        {
+            OriginPart.Position, 
+            Part.Position
+        },
+        IgnoreList
+    )
+
+    for i, v in pairs(Parts) do
+        if v.Transparency >= 0.3 then
+            walls[#walls + 1] = v
+        end
+
+        if v.Material == Enum.Material.Glass then
+            walls[#walls + 1] = v
+        end
+    end
+
+    return #Parts == 0
+end
+
+
+local function isPlayerInFrontOfCamera(player)
+    local character = player
+    if not character then
+        return false
+    end
+    local characterPosition = character.HumanoidRootPart.Position
+    local cameraPosition = game.workspace.CurrentCamera.CFrame.Position
+    local cameraLookVector = game.workspace.CurrentCamera.CFrame.LookVector
+    local relativePosition = characterPosition - cameraPosition
+    local dotProduct = cameraLookVector:Dot(relativePosition)
+    return dotProduct > 0
+end 
+
+
+
+
+function isinteam(player)
+    if game.Players[player.Name] then
+        if game.Players[player.Name].Team == game.Players.LocalPlayer.Team then
+            return true
+        else
+            return false
+        end
+    else
+        return false
+    end
+end
+
+
+
+
+
+function getClosestPlayerToCursor()
+    local mouse = game.Players.LocalPlayer:GetMouse()
+    local mousePos = Vector2.new(game:GetService("UserInputService"):GetMouseLocation().X, game:GetService("UserInputService"):GetMouseLocation().Y)
+    local closestPlayer
+    local shortestDistance = math.huge
+
+    for i, v in pairs(getgenv().targetfolder:GetChildren()) do
+
+        local body
+
+        if getgenv().targetfolder ~= game.Players then
+            body = v
+        else
+            body = v.Character
+        end
+    
+
+
+        if v.Name ~= game.Players.LocalPlayer.Name and body and body:FindFirstChild(silentaimhitpart) then
+            local pos = game.workspace.CurrentCamera:WorldToScreenPoint(body.HumanoidRootPart.Position)
+            local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(mouse.X, mouse.Y)).magnitude
+            local distance = (mousePos - Vector2.new(pos.X, pos.Y)).Magnitude
+            if distance <= silentaimcircle.Radius* 1 and distance < shortestDistance then
+                if not body:FindFirstChildWhichIsA("BasePart") then
+                    -- //
+                elseif silentaimvisiblecheck == true and not isPlayerInFrontOfCamera(body) then
+                    -- //
+                elseif silentaimteamcheck == true and isinteam(body) then
+                    -- //
+                elseif silentaimwallcheck == true and not WallCheck(body[silentaimhitpart], game.Players.LocalPlayer.Character.Head) then
+                    -- //
+                elseif silentaimhealthcheck == true and body:FindFirstChildOfClass("Humanoid").Health < silentaimhealthcheckhealth then
+                    -- //
+                elseif silentaimforcefieldcheck == true and body:FindFirstChildOfClass("ForceField") then
+                    -- //
+                    -- //
+                else
+                    closestPlayer = v
+                    shortestDistance = magnitude
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+
+
+
+SilentAimLeftBox:AddToggle('SilentAimToggle', { Text = 'SilentAim', Default = false, Tooltip = 'This is a tooltip',
+    Callback = function(Value)
+        silentaimtogglestatus = Value
+    end
+}):AddKeyPicker('SilentAimToggleKeypicker', { Default = 'E', SyncToggleState = false, Mode = 'Toggle', Text = 'Auto lockpick safes',})
+
+task.spawn(function()
+    while true do
+        task.wait()
+
+        -- example for checking if a keybind is being pressed
+        local state = Options.SilentAimToggleKeypicker:GetState()
+        if state then
+            silentaimkeybindstatus = true
+        else
+            silentaimkeybindstatus = false
+        end
+
+        if Library.Unloaded then break end
+    end
+end)
+
+
+-- // Functions
+local function CalculateDirection(Origin, Destination, Length)
+    return (Destination - Origin).Unit * Length
+end
+
+
+
+
+local highlight = Instance.new("Highlight", game.workspace)
+local evcfolder = Instance.new("Folder", game)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    if silentaimkeybindstatus == true and silentaimtogglestatus == true then
+        silentaimcircle.Visible = true
+        silentaimcircle.Position = Vector2.new(game:GetService("UserInputService"):GetMouseLocation().X, game:GetService("UserInputService"):GetMouseLocation().Y)
+        nearestplayer = getClosestPlayerToCursor()
+    else
+        highlight.Parent = evcfolder
+        silentaimcircle.Visible = false
+        if Line1.Visible == true then
+            Line1.Visible = false
+            Line2.Visible = false
+            Line3.Visible = false
+            Line4.Visible = false
+        end
+    end
+
+
+
+
+    if nearestplayer then
+        local body
+
+        
+        if getgenv().targetfolder ~= game.Players then
+            body = nearestplayer
+        else
+            body = nearestplayer.Character
+        end
+    
+
+
+
+
+
+
+
+
+
+
+        if silentaimprediction == true and body then
+            local X = body[silentaimhitpart].Position.X + body[silentaimhitpart].Velocity.X * silentaimpredictionx
+            local Y = body[silentaimhitpart].Position.Y + body[silentaimhitpart].Velocity.Y * silentaimpredictiony
+            local Z = body[silentaimhitpart].Position.Z + body[silentaimhitpart].Velocity.Z * silentaimpredictionz
+            predictionconstruit = Vector3.new(X, Y, Z)
+        else
+            predictionconstruit = body:FindFirstChild(silentaimhitpart).Position
+        end
+
+        if silentaimvisualizecrosshair == true and silentaimvisualizetarget == true then
+            Line1.Visible = true
+            Line2.Visible = true
+            Line3.Visible = true
+            Line4.Visible = true
+            local screen, onScreen = game.workspace.CurrentCamera:WorldToViewportPoint(predictionconstruit)
+            local frustumHeight = math.tan(math.rad(game.workspace.CurrentCamera.FieldOfView * 0.5)) * 2 * screen.Z
+            local CHAR_SIZE = Vector2.new(4, 6)
+            local size = game.workspace.CurrentCamera.ViewportSize.Y / frustumHeight * CHAR_SIZE
+            local position = Vector2.new(screen.X, screen.Y)
+
+
+            Line1.From = Vector2.new(screen.X, screen.Y + silentaimcrosshairspace)
+            Line1.To = Vector2.new(screen.X, screen.Y + (silentaimcrosshairspace + silentaimcrosshairlength))
+        
+            Line2.From = Vector2.new(screen.X + silentaimcrosshairspace, screen.Y)
+            Line2.To = Vector2.new(screen.X + (silentaimcrosshairspace + silentaimcrosshairlength), screen.Y)
+        
+            Line3.From = Vector2.new(screen.X, screen.Y - silentaimcrosshairspace)
+            Line3.To = Vector2.new(screen.X, screen.Y - (silentaimcrosshairspace + silentaimcrosshairlength))
+        
+            Line4.From = Vector2.new(screen.X - silentaimcrosshairspace, screen.Y)
+            Line4.To = Vector2.new(screen.X - (silentaimcrosshairspace + silentaimcrosshairlength), screen.Y)
+        elseif silentaimvisualizehighlight == true and silentaimvisualizetarget == true then
+            highlight.FillColor = silentaimhighlightFillColor
+            highlight.OutlineColor = silentaimhighlightOutlineColor
+            highlight.Parent = body
+        else
+            highlight.Parent = evcfolder
+            Line1.Visible = false
+            Line2.Visible = false
+            Line3.Visible = false
+            Line4.Visible = false
+        end
+    else
+        highlight.Parent = evcfolder
+        Line1.Visible = false
+        Line2.Visible = false
+        Line3.Visible = false
+        Line4.Visible = false
+        predictionconstruit = nil
+    end
+
+    
+end)
+
+
+
+
+
+spawn(function()
+    if useray == false then
+
+        RightGroupbox:AddToggle('MouseControlToggle', { Text = 'Mouse' });
+        
+        
+        local MouseBox = RightGroupbox:AddDependencyBox();
+        
+        MouseBox:AddDropdown('MouseBoxDropdown', { Text = 'Choose mouse(s) args to spoof', Default = 0, Multi = true ,Values = {'Origin', 'Hit', 'Target', 'UnitRay', 'X', 'Y'}, Callback = function(Value)
+        
+            silentaimmouseargs = {} -- Clear the table
+        
+            for key, _ in pairs(Value) do
+                table.insert(silentaimmouseargs, key)
+            end
+        
+        
+        
+        end})
+        
+        
+        
+        
+        
+        
+        
+        MouseBox:SetupDependencies({
+            { Toggles.MouseControlToggle, true } -- We can also pass `false` if we only want our features to show when the toggle is off!
+        });
+        
+        
+
+        local __index
+        __index = hookmetamethod(game, "__index", function(t, k)
+        -- // Check if it trying to get our mouse's hit or target and see if we can use it
+            if silentaimkeybindstatus == true and silentaimtogglestatus == true and nearestplayer and predictionconstruit then
+                if t:IsA("Mouse") and silentaimmouseargs then
+                    local body
+                    if getgenv().targetfolder ~= game:GetService("Players") then
+                        body = nearestplayer
+                    else
+                        body = nearestplayer.Character
+                    end
+                
+
+
+                    if k == "Hit" and table.find(silentaimmouseargs, k) then
+                        local Hit = CFrame.new(predictionconstruit)
+                        return Hit
+                    elseif k == "Origin" and table.find(silentaimmouseargs, k) then
+                        return CFrame.new(k.Position, predictionconstruit)
+                    elseif k == "Target" and table.find(silentaimmouseargs, k) then
+                        local SelectedPart = body[silentaimhitpart]
+                        return SelectedPart
+                    elseif k == "X" and table.find(silentaimmouseargs, k) then
+                        local pos = game.workspace.CurrentCamera:WorldToScreenPoint(predictionconstruit)
+                        return pos.X
+                    elseif k == "Y" and table.find(silentaimmouseargs, k) then
+                        local pos = game.workspace.CurrentCamera:WorldToScreenPoint(predictionconstruit)
+                        return pos.Y
+                    elseif k == "UnitRay" and table.find(silentaimmouseargs, k) then
+                        return Ray.new(t.Origin.Position, predictionconstruit - t.Origin.Position).Unit
+                    end
+                end
+            end
+
+        -- // Return if not mouse
+        return __index(t, k)
+        end)
+    end
+end)
+
+
+spawn(function()
+    if useray == true then
+            
+        RightGroupbox:AddToggle('RayControlToggle', { Text = 'Ray' });
+
+
+
+
+
+        local RayBox = RightGroupbox:AddDependencyBox();
+
+        RayBox:AddDropdown('RayBoxDropdown', { Text = 'Choose ray args to spoof', Default = 0, Multi = true ,Values = {'None', 'FindPartOnRayWithIgnoreList' --[['FindPartOnRayWithWhitelist'--[[, 'FindPartOnRay', 'Raycast'--]]}, Callback = function(Value)
+            silentaimrayargs = {} -- Clear the table
+            for key, _ in pairs(Value) do
+                if key == "None" then
+                    --do nothing
+                else
+                    table.insert(silentaimrayargs, key) -- Insert the keys into the table
+                end
+            end
+        end})
+
+
+
+        RayBox:SetupDependencies({
+            { Toggles.RayControlToggle, true } -- We can also pass `false` if we only want our features to show when the toggle is off!
+        });
+
+        local Old; Old = hookmetamethod(game, "__namecall", function(Self, ...)
+            local Args = {...}
+        
+            if (not checkcaller() and silentaimrayargs and table.find(silentaimrayargs,tostring(getnamecallmethod())) and nearestplayer and silentaimkeybindstatus == true and silentaimtogglestatus == true) then
+
+
+                if tostring(getnamecallmethod()) == "FindPartOnRayWithIgnoreList" then
+                    local Origin = Args[1].Origin
+        
+                    Args[1] = Ray.new(Origin, nearestplayer.Character[silentaimhitpart].Position - Origin)
+                elseif tostring(getnamecallmethod()) == "FindPartOnRayWithWhitelist" and tostring(getcallingscript()) == 'First Person Controller' then
+                    local HitPart = nearestplayer.Character[silentaimhitpart]
+                    local Origin = HitPart.Position + Vector3.new(0, 5, 0)
+                    local Direction = (HitPart.Position - Origin)
+                    print(Args[1].Origin)
+                    --Args[2] = Ray.new(Origin, Direction)
+                    return Old(Self, ...)
+
+                end
+            end
+        
+            return Old(Self, unpack(Args))
+        end)
+    end
+end)
+
+
+
+function waitforchildofclass(path,class,timeout)
+    local class = tostring(class) or ""
+    local timeout = tonumber(timeout) or false
+    local Return
+    local connection
+    local got = false
+    if (pcall(function() local _ = path.ChildAdded end)) then
+        if path:FindFirstChildWhichIsA(class) then got = true return path:FindFirstChildWhichIsA(class) else
+            local event = Instance.new("BindableEvent")
+            connection = path.ChildAdded:Connect(function(obj) if obj:IsA(class) then got = true Return = obj event:Fire() connection:Disconnect() end end)
+            spawn(function() if not timeout then wait(5) if not got then warn("Infinite yield possible on '"..tostring(path)..":WaitForChildOfClass(\""..class.."\")'") end else wait(timeout) if not got then event:Fire() end end end)
+            event.Event:Wait()
+            return Return
+        end
+    else 
+    error("Attempt to index "..typeof(path).." with "..tostring(path))
+    end
+end
+
+
+
+
+spawn(function()
+    while true do
+        task.wait()
+        if silentaimtoolcheck == true and silentaimtogglestatus == true and silentaimkeybindstatus == true then
+            if nearestplayer and predictionconstruit then
+                if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                    local tool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    tool.Enabled = true
+                end
+            else
+
+                if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                    local tool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    tool.Enabled = false
+                end
+            end
+        else
+            if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                local tool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                tool.Enabled = true
+            end
+        end
+    end
+end)
+
+SilentAimLeftBox:AddDropdown('SilentAimHitpartPicker', { Values = { 'Head', 'HumanoidRootPart'}, Default = 1, Multi = false, Text = 'Silentaim Hitpart', Tooltip = 'Wich part will it target?', Callback = function(Value)
+    silentaimhitpart = Value
+end})
+
+SilentAimLeftBox:AddDivider()
+SilentAimLeftBox:AddLabel("Checks")
+
+
+SilentAimLeftBox:AddToggle('SilentAimVisibleCheck', { Text = 'Visible', Default = false, Tooltip = 'Prevents from targeting players behind you',
+    Callback = function(Value)
+        silentaimvisiblecheck = Value
+    end
+})
+
+
+SilentAimLeftBox:AddToggle('SilentAimWallcheck', { Text = 'Wall', Default = false, Tooltip = 'Prevents from targeting players behind walls',
+    Callback = function(Value)
+        silentaimwallcheck = Value
+    end
+})
+
+SilentAimLeftBox:AddToggle('SilentAimTeamCheck', { Text = 'Team', Default = false, Tooltip = 'Prevents from targeting players that are your teammates',
+    Callback = function(Value)
+        silentaimteamcheck = Value
+    end
+})
+
+SilentAimLeftBox:AddToggle('SilentAimToolCheck', { Text = 'Tool', Default = false, Tooltip = 'Keeps your gun deactivated until target / deactivation',
+    Callback = function(Value)
+        silentaimtoolcheck = Value
+        if silentaimtoolcheck == false then
+            if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                local tool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                tool.Enabled = true
+            end
+
+            for i,v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                v.Enabled = true
+            end
+        end
+    end
+})
+SilentAimLeftBox:AddToggle('SilentAimHealthcheck', { Text = 'Health', Default = false, Tooltip = 'Prevents from targeting players of health beneat or equal to 0',
+    Callback = function(Value)
+        silentaimhealthcheck = Value
+    end
+})
+
+
+local SilemtAimHealthCheckBox = SilentAimLeftBox:AddDependencyBox();
+
+SilemtAimHealthCheckBox:AddSlider('SilentAimHealthCheckAmount', { Text = 'Health to unlock', Default = 0, Min = 0, Max = 100, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimhealthcheckhealth = Value
+end})
+
+
+SilemtAimHealthCheckBox:SetupDependencies({
+    { Toggles.SilentAimHealthcheck, true }
+});
+
+SilentAimLeftBox:AddToggle('SilentAimForceFieldCheck', { Text = 'Forcefield', Default = false, Tooltip = 'Prevents from targeting players with a forcefield',
+    Callback = function(Value)
+        silentaimforcefieldcheck = Value
+    end
+})
+
+
+
+SilentAimLeftBox:AddDivider()
+
+
+
+
+
+
+
+
+
+
+SilentAimLeftBox:AddToggle('PredictionControlToggle', { Text = 'Prediction' });
+
+Toggles.PredictionControlToggle:OnChanged(function()
+    silentaimprediction = Toggles.PredictionControlToggle.Value
+end)
+
+
+local SilentAimPredictionBox = SilentAimLeftBox:AddDependencyBox();
+
+SilentAimPredictionBox:AddSlider('SilentAimPredictionSliderX', { Text = 'X', Default = 0, Min = 0, Max = 1, Rounding = 2, Compact = false, Callback = function(Value)
+    silentaimpredictionx = Value
+end})
+
+SilentAimPredictionBox:AddSlider('SilentAimPredictionSliderY', { Text = 'Y', Default = 0, Min = 0, Max = 1, Rounding = 2, Compact = false, Callback = function(Value)
+    silentaimpredictiony = Value
+end})
+
+SilentAimPredictionBox:AddSlider('SilentAimPredictionSliderZ', { Text = 'Z', Default = 0, Min = 0, Max = 1, Rounding = 2, Compact = false, Callback = function(Value)
+    silentaimpredictionz = Value
+end})
+
+SilentAimPredictionBox:SetupDependencies({
+    { Toggles.PredictionControlToggle, true } -- We can also pass `false` if we only want our features to show when the toggle is off!
+});
+
+
+
+
+
+
+Tab1:AddSlider('FovSizeSlider', { Text = 'Fov Size', Default = 0, Min = 0, Max = 700, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimcircle.Radius = Value
+end})
+
+Tab1:AddSlider('FovTransparencySlider', { Text = 'Fov Transparency', Default = 1, Min = 0, Max = 1, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimcircle.Transparency = Value
+end})
+
+Tab1:AddSlider('FovThicknessSlider', { Text = 'Fov Thickness', Default = 1, Min = 1, Max = 25, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimcircle.Thickness = Value
+end})
+
+
+
+Tab1:AddLabel('Fov Color'):AddColorPicker('SilentAimFovColorPicker', { Default = Color3.new(0, 0, 0), Title = 'Fov Color', Transparency = 0, Callback = function(Value)
+    silentaimcircle.Color = Value
+end})
+
+
+local Tab2 = SilentAimVisualsBox:AddTab('Target')
+
+
+Tab2:AddToggle('silentaimvisualizetargetXD', { Text = 'Visualize target', Default = false, Tooltip = 'Deploys a crosshair on the target',
+    Callback = function(Value)
+        silentaimvisualizetarget = Value
+    end
+})
+
+
+
+Tab2:AddToggle('CrosshairToggle', { Text = 'Target Crosshair' });
+Tab2:AddToggle('HighlightToggle', { Text = 'Target Highlight' });
+
+Toggles.CrosshairToggle:OnChanged(function()
+    silentaimvisualizecrosshair = Toggles.CrosshairToggle.Value
+end)
+
+Toggles.HighlightToggle:OnChanged(function()
+    silentaimvisualizehighlight = Toggles.HighlightToggle.Value
+end)
+
+
+local CrosshairVisualizerBox = Tab2:AddDependencyBox();
+local HighlightVisualizerBox = Tab2:AddDependencyBox();
+
+CrosshairVisualizerBox:SetupDependencies({ { Toggles.CrosshairToggle, true } });
+
+
+HighlightVisualizerBox:SetupDependencies({ { Toggles.HighlightToggle, true } });
+
+
+CrosshairVisualizerBox:AddDivider()
+HighlightVisualizerBox:AddDivider()
+
+HighlightVisualizerBox:AddToggle('silentaimhighlighttargetXD', { Text = 'Highlight Target', Default = false, Tooltip = 'Highlights the target',
+    Callback = function(Value)
+        silentaimvisualizehighlight = Value
+    end
+})
+
+HighlightVisualizerBox:AddLabel('Highlight FillColor'):AddColorPicker('HighlightFillColor', { Default = Color3.new(0, 0, 0), Title = 'Highlight FillColor', Transparency = 0, Callback = function(Value)
+    silentaimhighlightFillColor = Value
+end})
+
+HighlightVisualizerBox:AddLabel('Highlight Outline'):AddColorPicker('HighlightOutlineColor', { Default = Color3.new(0, 0, 0), Title = 'Highlight OutlineColor', Transparency = 0, Callback = function(Value)
+    silentaimhighlightOutlineColor = Value
+end})
+
+
+
+
+
+
+
+
+CrosshairVisualizerBox:AddLabel('Crosshair Color'):AddColorPicker('', { Default = Color3.new(0, 0, 0), Title = 'Crosshair Color', Transparency = 0, Callback = function(Value)
+    Line1.Color = Value
+    Line2.Color = Value
+    Line3.Color = Value
+    Line4.Color = Value
+end})
+
+CrosshairVisualizerBox:AddSlider('CrosshairSpaceSliderXD', { Text = 'Crosshair Space', Default = 1, Min = 1, Max = 50, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimcrosshairspace = Value
+end})
+
+CrosshairVisualizerBox:AddSlider('CrosshairLengthSliderXD', { Text = 'Crosshair Length', Default = 1, Min = 1, Max = 50, Rounding = 1, Compact = false, Callback = function(Value)
+    silentaimcrosshairlength = Value
+end})
+
+CrosshairVisualizerBox:AddSlider('CrosshairThicknessSliderXD', { Text = 'Crosshair Thickness', Default = 1, Min = 1, Max = 50, Rounding = 1, Compact = false, Callback = function(Value)
+    Line1.Thickness = Value
+    Line2.Thickness = Value
+    Line3.Thickness = Value
+    Line4.Thickness = Value
+end})
+
+CrosshairVisualizerBox:AddSlider('CrosshairThicknessSliderXD', { Text = 'Crosshair Transparency', Default = 1, Min = 0, Max = 1, Rounding = 1, Compact = false, Callback = function(Value)
+    Line1.Transparency = Value
+    Line2.Transparency = Value
+    Line3.Transparency = Value
+    Line4.Transparency = Value
+end})
+
+
+
+
+
+
+
+
+
+
+
+
+--[[
+Depbox:AddToggle('DepboxToggle', { Text = 'Sub-dependency box toggle' });
+local SubDepbox = Depbox:AddDependencyBox();
+SubDepbox:SetupDependencies({
+    { Toggles.DepboxToggle, true }
+});
+--]]
+
+
+
+
+
+
+
+
+Library:OnUnload(function()
+    Library.Unloaded = true
+end)
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+
+
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+Library.ToggleKeybind = Options.MenuKeybind
+
+
+
+
+MenuGroup:AddToggle('WaterMarkToggle', { Text = 'Watermark', Default = true, Tooltip = 'Toggles watermark display',
+    Callback = function(Value)
+        Library:SetWatermarkVisibility(Value)
+    end
+})
+
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+ThemeManager:SetFolder('EvcPrivate')
+SaveManager:SetFolder('EvcPrivate/specific-game')
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+SaveManager:LoadAutoloadConfig()
